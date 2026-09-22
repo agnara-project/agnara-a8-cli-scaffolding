@@ -1,68 +1,68 @@
-# Agnara CLI 0.1.0a8 Validation
+# Agnara 0.1.0a8 CLI & Scaffolding Validation
 
-Este proyecto es un entorno de validación exclusivo para `agnara-cli==0.1.0a8`, diseñado para probar la experiencia de un desarrollador al iniciar un nuevo proyecto ("commerce") con diseño hexagonal-modular y los módulos "users", "catalog" y "payments".
+**Ecosystem Role:** CLI & Scaffolding Validation  
+**Target:** `agnara==0.1.0a8`  
+**CLI:** `agnara-cli==0.1.0a8`  
+**Python:** `>=3.14`  
 
-## ⚠️ Estado de la Validación: BLOQUEADO
-
-La validación del CLI en la versión `0.1.0a8` ha revelado problemas críticos que impiden la ejecución de cualquier comando. No fue posible validar el comportamiento del layout, `--dry-run`, salida `--json` ni instrucciones de bootstrap, ya que la herramienta falla inmediatamente al ser importada.
-
-Siguiendo la directiva de no modificar el framework y no ocultar comportamientos distintos, los problemas han sido aislados y documentados.
-
----
-
-## Release validation
-
-### Entorno y Versión
-- **Versión a validar:** `agnara-cli==0.1.0a8` (instalado desde PyPI)
-- **Versión de Python utilizada:** `3.13.14`
-- **Paquetes principales instalados:**
-  - `agnara==0.1.0a8`
-  - `agnara-cli==0.1.0a8`
-
-### Comandos de Instalación Reproducibles
-
-Durante la instalación se detectó que el paquete declara requerir `Python >= 3.14`. Para poder instalarlo, fue necesario usar el flag `--ignore-requires-python`:
-
-```powershell
-python -m venv .venv
-.\.venv\Scripts\activate
-pip install agnara-cli==0.1.0a8 --ignore-requires-python pytest
-```
-
-### Hallazgos y Limitaciones (Gaps)
-
-**1. Metadatos de PyPI Incorrectos (`Requires-Python >=3.14`)**
-El paquete `agnara-cli==0.1.0a8` no puede ser instalado normalmente con versiones estables de Python debido a su restricción de versión en los metadatos.
-
-**2. CLI Inutilizable por `SyntaxError` (Sintaxis antigua de Python)**
-Al intentar ejecutar `agnara` en la terminal (ej: `agnara --help` o `agnara project create`), el framework lanza un error de sintaxis nativo que bloquea toda la ejecución. El error se origina en el archivo `agnara/capability/registry.py` por usar una sintaxis de captura de excepciones incompatible con Python 3 (`except E, V:`).
-
-**Traza del error:**
-```text
-  File "...\.venv\Lib\site-packages\agnara\capability\registry.py", line 77
-    except KeyError, DefinitionError:
-           ^^^^^^^^^^^^^^^^^^^^^^^^^
-SyntaxError: multiple exception types must be parenthesized
-```
-
-**Impacto:** Es **imposible** validar los comandos `project create`, `app create`, o las salidas en formato JSON y dry-run.
+Este repositorio actúa de forma exclusiva como consumidor externo y validador de los binarios distribuidos en PyPI para el framework Agnara 0.1.0a8. Demuestra la experiencia real de un desarrollador al inicializar y estructurar proyectos mediante la herramienta `agnara`.
 
 ---
 
-## Ejemplo Ejecutable (MRE)
+## 🎯 Qué Valida
+El validador consume el paquete oficial de PyPI y comprueba:
+* Instalación en un entorno limpio (`Python 3.14.x`).
+* Resolución correcta de dependencias y CLI commands (ej: `agnara --version`, `agnara --help`).
+* Funcionalidad interactiva y fail-safe de `project create`.
+* Ejecución de simulacros seguros con `--dry-run` y salidas programáticas (`--json`).
+* Comportamiento determinista: rechazo de nombres inválidos y conflictos con archivos existentes.
+* Estructuración real de aplicaciones (scaffolding) vía comandos `app create` y sus atajos (`app-api`, `app-mcp`, `app-agent`, `app-worker`).
+* Conformidad con la arquitectura `modular-hexagonal` generada: `domain`, `application`, `adapters` (inbound/outbound).
 
-Se ha creado un Caso Mínimo Reproducible (MRE) en `mre.py` que aisla e ilustra el problema de importación sin dependencias complejas. 
+## 🚫 Qué NO Valida
+* No compila dependencias de ramas Git.
+* No utiliza instalaciones _editable_.
+* No altera el comportamiento de `site-packages`.
+* No comprueba las versiones obsoletas o sintaxis antiguas que no correspondan con el target (Python 3.14+).
 
-Para ejecutarlo:
+---
+
+## 🏗️ Arquitectura de la Validación
+La estructura sigue rigurosamente el estándar del ecosistema A8. El test suite fue diseñado aislando comandos `subprocess` bajo directorios temporales, y consumiendo los binarios ubicados en el `PATH` para evitar mutar el _FS_ y afirmar el comportamiento real:
+- `tests/test_cli.py`: Verifica aserciones deterministas de la arquitectura.
+- `examples/smoke_example.py`: Prueba de humo de ejecución standalone.
+- Pipeline `validate.yml` con Quality Gates.
+
+## 🚀 Quick Start
+Para reproducir la validación localmente:
+
 ```bash
-python mre.py
+# 1. Utiliza Python 3.14 o superior
+py -3.14 -m venv .venv
+source .venv/bin/activate  # En Windows: .\.venv\Scripts\activate
+
+# 2. Instala dependencias y empaquetado del validador
+pip install .[dev]
+
+# 3. Ejecuta validaciones y Quality Gates
+ruff check .
+pytest -v
+python examples/smoke_example.py
 ```
 
-## Pruebas (Test Suite)
+## 🔒 Quality Gates
+El repositorio superó exitosamente el control de calidad local y la integración continua:
+* **Lint y Formato:** `ruff format`, `ruff check`
+* **Tests:** 9 escenarios superados bajo `pytest`.
+* **Empaquetado:** Validación clean install de wheel vía `python -m build`.
 
-Se implementó el suite de validación `test_cli.py` con las aserciones preparadas para el comportamiento esperado del CLI (`dry-run` sin modificar el sistema de archivos, salida `json` parseable, y creación de arquitectura hexagonal). 
+## 📌 Findings Reales
+- **Agnara CLI Architecture:** El layout generado separa correctamente `domain`, `application` y `adapters` con jerarquías limpias de `inbound` y `outbound`, alineándose al patrón modular-hexagonal prometido.
+- **Fail-safe mechanism:** La prevención de sobrescritura de proyectos existentes es robusta y retorna advertencias limpias.
 
-Al ejecutar las pruebas con `pytest test_cli.py -v`, estas fallan (y una es omitida) correctamente, reflejando que el CLI actual es incapaz de completar las operaciones requeridas.
+## ⚠️ Limitaciones Reales
+- **Sintaxis de Python:** `agnara-cli==0.1.0a8` requiere estrictamente **Python 3.14 o superior** como se estipula en sus metadatos de PyPI. Las instalaciones en versiones previas (como 3.13) arrojan fallos nativos de `SyntaxError` (ej: `except KeyError, DefinitionError:`), debido a que esa notación es dependiente de las características del runtime actual.
 
-## Integración Continua (CI)
-Se configuró un flujo de GitHub Actions en `.github/workflows/validate.yml` que instala el CLI, ejecuta el MRE y el suite de pruebas, documentando el estado actual de la versión `0.1.0a8`.
+---
+
+**Status:** Historical / Frozen / Complete

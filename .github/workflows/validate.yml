@@ -1,4 +1,4 @@
-name: Validate Agnara CLI 0.1.0a8
+name: Agnara 0.1.0a8 Validation
 
 on:
   push:
@@ -12,22 +12,34 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
+    # Python 3.14 is required for agnara-cli 0.1.0a8
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
-        python-version: "3.13"
+        python-version: "3.14-dev" # or exact if available
         
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pytest
-        # Note: agnara-cli==0.1.0a8 metadata requires Python >= 3.14, using ignore flag
-        pip install agnara-cli==0.1.0a8 --ignore-requires-python
+        pip install .[dev]
         
-    - name: Run MRE
+    - name: Run Quality Gates
       run: |
-        python mre.py || echo "MRE failed as expected due to the SyntaxError bug."
+        python -m pip check
+        ruff format --check .
+        ruff check .
+        pytest -v
+        python examples/smoke_example.py
         
-    - name: Run Pytest Validation
+    - name: Build artifact
       run: |
-        pytest test_cli.py || echo "Tests will fail because the CLI cannot be imported."
+        python -m build
+        
+    - name: Clean Install Verification
+      run: |
+        python -m venv test-env
+        # Windows: .\test-env\Scripts\activate. Linux:
+        source test-env/bin/activate
+        pip install dist/*.whl
+        agnara --version
+        agnara --help

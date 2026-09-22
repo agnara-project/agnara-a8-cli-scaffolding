@@ -5,18 +5,30 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "agnara-a8-cli-scaffolding"
 version = "0.1.0"
-description = "Proyecto de validación para Agnara CLI 0.1.0a8"
+description = "Agnara 0.1.0a8 CLI & Scaffolding Validation"
 authors = [
-    { name = "Developer", email = "dev@example.com" }
+    { name = "Agnara Project", email = "dev@agnara.dev" }
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.14"
 dependencies = [
-    "pytest>=7.0",
+    "agnara==0.1.0a8",
+    "agnara-cli==0.1.0a8",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.5.0",
+    "build>=1.0.0",
 ]
 
 [tool.pytest.ini_options]
-minversion = "7.0"
+minversion = "8.0"
 addopts = "-v"
 testpaths = [
-    ".",
+    "tests",
 ]
+
+[tool.ruff]
+line-length = 88
+target-version = "py314"

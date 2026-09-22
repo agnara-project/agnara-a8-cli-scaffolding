@@ -12,26 +12,27 @@ Este repositorio actúa de forma exclusiva como consumidor externo y validador d
 ## 🎯 Qué Valida
 El validador consume el paquete oficial de PyPI y comprueba:
 * Instalación en un entorno limpio (`Python 3.14.x`).
-* Resolución correcta de dependencias y CLI commands (ej: `agnara --version`, `agnara --help`).
+* Resolución correcta de dependencias y comandos CLI (ej: `agnara --version`, `agnara --help`).
 * Funcionalidad interactiva y fail-safe de `project create`.
-* Ejecución de simulacros seguros con `--dry-run` y salidas programáticas (`--json`).
-* Comportamiento determinista: rechazo de nombres inválidos y conflictos con archivos existentes.
-* Estructuración real de aplicaciones (scaffolding) vía comandos `app create` y sus atajos (`app-api`, `app-mcp`, `app-agent`, `app-worker`).
-* Conformidad con la arquitectura `modular-hexagonal` generada: `domain`, `application`, `adapters` (inbound/outbound).
+* Ejecución de simulacros seguros con `--dry-run`, determinismo de salida programática (`--json`), garantizando inmutabilidad.
+* Comportamiento determinista: rechazo de nombres inválidos y validación explícita del flag `--overwrite`.
+* Estructuración real de aplicaciones (scaffolding) vía comandos `app create` y sus atajos de perfiles (`app-api`, `app-mcp`, `app-agent`, `app-worker`).
+* Conformidad con la arquitectura `modular-hexagonal` generada: `domain`, `application`, `adapters` (inbound/outbound), asertando exposiciones y archivos generados (`http.py`, `mcp.py`, `a2a.py`, `tasks.py`, `events.py`).
+* Consistencia del manifiesto `agnara.toml`, validando la declaración, arquitectura y *exposures* de las apps.
 
 ## 🚫 Qué NO Valida
 * No compila dependencias de ramas Git.
 * No utiliza instalaciones _editable_.
 * No altera el comportamiento de `site-packages`.
-* No comprueba las versiones obsoletas o sintaxis antiguas que no correspondan con el target (Python 3.14+).
+* No inventa el contrato de layout ni parchea el código.
 
 ---
 
 ## 🏗️ Arquitectura de la Validación
-La estructura sigue rigurosamente el estándar del ecosistema A8. El test suite fue diseñado aislando comandos `subprocess` bajo directorios temporales, y consumiendo los binarios ubicados en el `PATH` para evitar mutar el _FS_ y afirmar el comportamiento real:
+La estructura sigue rigurosamente el estándar del ecosistema A8. El test suite orquesta llamadas `subprocess` bajo directorios temporales contra el CLI empaquetado:
 - `tests/test_cli.py`: Verifica aserciones deterministas de la arquitectura.
-- `examples/smoke_example.py`: Prueba de humo de ejecución standalone.
-- Pipeline `validate.yml` con Quality Gates.
+- `examples/smoke_example.py`: Prueba de humo de ejecución standalone end-to-end.
+- Pipeline `validate.yml` orquestando Quality Gates obligatorios.
 
 ## 🚀 Quick Start
 Para reproducir la validación localmente:
@@ -45,6 +46,8 @@ source .venv/bin/activate  # En Windows: .\.venv\Scripts\activate
 pip install .[dev]
 
 # 3. Ejecuta validaciones y Quality Gates
+python -m pip check
+ruff format --check .
 ruff check .
 pytest -v
 python examples/smoke_example.py
@@ -52,16 +55,18 @@ python examples/smoke_example.py
 
 ## 🔒 Quality Gates
 El repositorio superó exitosamente el control de calidad local y la integración continua:
-* **Lint y Formato:** `ruff format`, `ruff check`
-* **Tests:** 9 escenarios superados bajo `pytest`.
+* **Lint y Formato:** `ruff format`, `ruff check` (completamente verde).
+* **Tests:** `10` escenarios superados bajo `pytest`.
+* **Smoke Test:** Ejecución end-to-end validada con éxito.
 * **Empaquetado:** Validación clean install de wheel vía `python -m build`.
 
 ## 📌 Findings Reales
-- **Agnara CLI Architecture:** El layout generado separa correctamente `domain`, `application` y `adapters` con jerarquías limpias de `inbound` y `outbound`, alineándose al patrón modular-hexagonal prometido.
-- **Fail-safe mechanism:** La prevención de sobrescritura de proyectos existentes es robusta y retorna advertencias limpias.
+- **Agnara CLI Architecture:** El layout generado separa `domain`, `application` y `adapters` con jerarquías limpias de `inbound` y `outbound`.
+- **Profiles / Exposures:** Los perfiles se acoplan exactamente a los *exposures* correctos y estos son registrados fielmente en el `agnara.toml`.
+- **Fail-safe mechanism / Overwrite:** La prevención de sobrescritura de proyectos y el flag explícito `--overwrite` responden fielmente bajo entornos idénticos.
 
 ## ⚠️ Limitaciones Reales
-- **Sintaxis de Python:** `agnara-cli==0.1.0a8` requiere estrictamente **Python 3.14 o superior** como se estipula en sus metadatos de PyPI. Las instalaciones en versiones previas (como 3.13) arrojan fallos nativos de `SyntaxError` (ej: `except KeyError, DefinitionError:`), debido a que esa notación es dependiente de las características del runtime actual.
+- **Sintaxis Exclusiva 3.14:** El CLI requiere rigurosamente un intérprete de Python 3.14 o superior debido a convenciones internas de sintaxis y dependencias declaradas en PyPI. 
 
 ---
 

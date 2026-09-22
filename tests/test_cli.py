@@ -14,7 +14,9 @@ def temp_dir():
 
 def run_agnara(*args, cwd=None):
     # agnara is in the current environment's PATH
-    result = subprocess.run(["agnara", *args], capture_output=True, text=True, cwd=cwd, check=False)
+    result = subprocess.run(
+        ["agnara", *args], capture_output=True, text=True, cwd=cwd, check=False
+    )
     return result
 
 
@@ -38,14 +40,21 @@ def test_project_create_dry_run(temp_dir):
 
 
 def test_project_create_dry_run_json(temp_dir):
-    res = run_agnara(
+    res1 = run_agnara(
         "project", "create", "commerce", "--dry-run", "--json", cwd=temp_dir
     )
-    assert res.returncode == 0, f"Failed: {res.stderr}"
+    res2 = run_agnara(
+        "project", "create", "commerce", "--dry-run", "--json", cwd=temp_dir
+    )
+    assert res1.returncode == 0, f"Failed: {res1.stderr}"
+    assert res2.returncode == 0, f"Failed: {res2.stderr}"
+
+    # Determinism check
+    assert res1.stdout == res2.stdout, "Dry-run JSON output is not deterministic"
     assert not (temp_dir / "commerce").exists(), "dry-run modified FS!"
 
     try:
-        data = json.loads(res.stdout)
+        data = json.loads(res1.stdout)
         assert isinstance(data, dict)
     except json.JSONDecodeError:
         pytest.fail("Output is not valid JSON")
@@ -61,6 +70,9 @@ def test_project_create_and_structure(temp_dir):
     assert (proj_dir / "src").exists()
     assert (proj_dir / "tests").exists()
     assert (proj_dir / "pyproject.toml").exists()
+
+
+import tomllib
 
 
 def test_app_create(temp_dir):
@@ -82,13 +94,31 @@ def test_app_create(temp_dir):
         assert (app_dir / "adapters" / "inbound").exists()
         assert (app_dir / "adapters" / "outbound").exists()
 
+    # Verify manifest
+    manifest_path = proj_dir / "agnara.toml"
+    with open(manifest_path, "rb") as f:
+        manifest = tomllib.load(f)
+
+    for app in apps_to_create:
+        assert app in manifest.get("apps", {}), f"App {app} not declared in agnara.toml"
+        assert manifest["apps"][app]["architecture"] == "modular-hexagonal"
+
 
 def test_app_profiles(temp_dir):
     run_agnara("project", "create", "commerce", cwd=temp_dir)
     proj_dir = temp_dir / "commerce"
 
-    profiles = ["app-api", "app-mcp", "app-agent", "app-worker"]
-    for i, profile in enumerate(profiles):
+    profiles = {
+        "app-api": {"exposures": ["http"], "files": ["http.py"]},
+        "app-mcp": {"exposures": ["mcp"], "files": ["mcp.py"]},
+        "app-agent": {"exposures": ["mcp", "a2a"], "files": ["mcp.py", "a2a.py"]},
+        "app-worker": {
+            "exposures": ["tasks", "events"],
+            "files": ["tasks.py", "events.py"],
+        },
+    }
+
+    for i, (profile, expected) in enumerate(profiles.items()):
         app_name = f"service_{i}"
         res = run_agnara(profile, app_name, cwd=proj_dir)
         assert res.returncode == 0, (
@@ -98,6 +128,25 @@ def test_app_profiles(temp_dir):
         app_dir = proj_dir / "src" / "commerce" / "apps" / app_name
         assert app_dir.exists()
         assert (app_dir / "module.py").exists()
+
+        # Verify specific inbound files
+        inbound_dir = app_dir / "adapters" / "inbound"
+        for f in expected["files"]:
+            assert (inbound_dir / f).exists(), (
+                f"Expected {f} not generated for {profile}"
+            )
+
+    # Verify manifest
+    manifest_path = proj_dir / "agnara.toml"
+    with open(manifest_path, "rb") as f:
+        manifest = tomllib.load(f)
+
+    for i, (profile, expected) in enumerate(profiles.items()):
+        app_name = f"service_{i}"
+        assert app_name in manifest["apps"]
+        assert set(manifest["apps"][app_name]["exposures"]) == set(
+            expected["exposures"]
+        )
 
 
 def test_invalid_name_rejection(temp_dir):
@@ -112,3 +161,10 @@ def test_file_exists_conflict(temp_dir):
     res = run_agnara("project", "create", "commerce", cwd=temp_dir)
     assert res.returncode != 0
     assert "exist" in res.stderr.lower() or "conflict" in res.stderr.lower()
+
+
+def test_overwrite_flag(temp_dir):
+    run_agnara("project", "create", "commerce", cwd=temp_dir)
+    # Use --overwrite, it should succeed
+    res = run_agnara("project", "create", "commerce", "--overwrite", cwd=temp_dir)
+    assert res.returncode == 0, f"--overwrite failed: {res.stderr}"

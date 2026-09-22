@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agnara-a8-cli-scaffolding"
+version = "0.1.0"
+description = "Proyecto de validación para Agnara CLI 0.1.0a8"
+authors = [
+    { name = "Developer", email = "dev@example.com" }
+]
+requires-python = ">=3.10"
+dependencies = [
+    "pytest>=7.0",
+]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-v"
+testpaths = [
+    ".",
+]
